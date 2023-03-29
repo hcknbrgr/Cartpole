@@ -1,30 +1,28 @@
-from pyfirmata import Arduino, util
+import serial
 import time
+import struct  # for sending data as bytes
+import matplotlib.pyplot as plt
 
+arduino = serial.Serial('COM7', 9800, write_timeout=0.5, timeout=.5)
+time.sleep(2)
 
-board = Arduino('COM7')
-print("communication successfully started")
-it = util.Iterator(board)
-it.start()
+data = []
+for i in range(50):
+    line = arduino.readline()
+    if line:
+        string = line.decode()
+        num = int(string)
+        print(num)
+        if num > 12:
+            arduino.write(struct.pack('>B', 1))
+        else:
+            arduino.write(struct.pack('>B', 0))
+        data.append(num)
 
-''' 
-    Ultrasonic sensor pins - 
-    VCC +5VDC
-    Trig: Trigger - Input Pin 11
-    Echo: Echo Output - Output pin 12
-    Gnd: Gnd
-'''
-trigPin = 11
-echoPin = 12
+arduino.close()
 
-while True:
-    board.digital[trigPin].write(0)
-    time.sleep(0.000005)   # sleep for 5 microseconds to before sending ultrasonic burst
-    board.digital[trigPin].write(1)  # send the burst
-    time.sleep(0.000010)  # sleep for 10 microseconds, then turn off to determine rebound of sound
-    board.digital[trigPin].write(0)   # turn off the burst
-
-    duration = board.digital[echoPin].read()   # read the value it took for the response
-    cm = (duration/2.0) / 29.1  # calculate the distance in cm
-
-    
+plt.plot(data)
+plt.xlabel('Time')
+plt.ylabel('Distance')
+plt.title('Time vs Distance')
+plt.show()
