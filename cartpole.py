@@ -9,35 +9,62 @@ import matplotlib.pyplot as plt
 # TODO: MARK END OF EPISODE
 # TODO: IMPLEMENT REINFORCEMENT ALGORITHM
 
+# Cart Directions -
+# 0 = move towards sensor
+# 1 = stationary
+# 2 = move away from sensor
+
 # Test the cart distance for initialization.
 arduino = serial.Serial('COM7', 115200, write_timeout=0.5, timeout=.5)
 time.sleep(2)
 cartCenteredCounts = 0
-data = []
-while cartCenteredCounts >= 100:
+poleVerticalCounts = 0
+initializeDistanceData = []
+initializeVerticalData = []
+while cartCenteredCounts <= 100:  # INITIALIZE CART POSITION
     line = arduino.readline()
     if line:
         string = line.decode()
         num = int(string)
         cm = (num / 2.0) / 29.1
-        if num < 8.0:
+        if num < 8.0:  # TOO CLOSE, MOVE AWAY FROM WALL
             arduino.write(struct.pack('>B', 2))
             cartCenteredCounts = 0
-        elif num > 9.0:
+        elif num > 9.0:  # TOO FAR, MOVE CLOSER TO THE WALL
             arduino.write(struct.pack('>B', 0))
             cartCenteredCounts = 0
-        else:
+        else:  # CART IS CENTERED, LET'S MAKE SURE IT'S STAYING STABLE
             cartCenteredCounts += 1
-            if cartCenteredCounts >= 100:
+            if cartCenteredCounts >= 100:   # IF IT'S BEEN CENTERED LONG ENOUGH THEN THE SIGNAL THAT IT'S GOOD
                 arduino.write(struct.pack('>B', 3))
-            else:
+            else:   #  MAKE SURE THE CART IS STAYING CENTERED
                 arduino.write(struct.pack('>B', 1))
-        data.append(num)
+        initializeDistanceData.append(num)
+#  END CART INITIALIZED POSITION
+#  INITIALIZE THE ACCELEROMETER POSITION
+while poleVerticalCounts < 3:
+    line = arduino.readline()
+    if line:
+        string = line.decode()
+        num = int(string)
+        initializeVerticalData.append(num)
+        if num == 90:  # if it's vertical then get ready to go
+            poleVerticalCounts += 1
+            arduino.write(struct.pack('>B', 0))
+arduino.write(struct.pack('>B', 1))  # cart has been vertical for a total of 3 read cycles
+
+#  CART IS COMPLETELY INITIALIZED, DO AN EPISODE
 
 arduino.close()
 
-plt.plot(data)
+plt.plot(initializeDistanceData)
 plt.xlabel('Time')
 plt.ylabel('Distance')
 plt.title('Time vs Distance')
+plt.show()
+
+plt.plot(initializeVerticalData)
+plt.xlabel('Time')
+plt.ylabel('Angle')
+plt.title('Time vs Angle')
 plt.show()
