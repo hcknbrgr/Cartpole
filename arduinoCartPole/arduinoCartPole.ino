@@ -103,49 +103,12 @@ void loop() {
     if(Serial.available()>0) {
       motorDirection = Serial.read(); 
     }
-    // 0 = move towards wall
-    // 1 = stationary
-    // 2 = move away from wall
-    // > 3 cart was initialized and in good position.
-    // if we want to use the PWM to modify the speed, we'll use: analogWrite(motor1PWM, speed);
-    // we need to assign speed
-
-    if(motorDirection == 0)  // 0 = move towards wall
-    {
-      digitalWrite(motor1pin1, HIGH);
-      digitalWrite(motor1pin2, LOW);
-      digitalWrite(motor2pin1, LOW);
-      digitalWrite(motor2pin2, HIGH);
-      delay(50);
-      digitalWrite(motor1pin1, LOW);
-      digitalWrite(motor1pin2, LOW);
-      digitalWrite(motor2pin1, LOW);
-      digitalWrite(motor2pin2, LOW);
-    } 
-    else if(motorDirection == 2)  // 2 = too close, move away from the wall!
-    {
-      digitalWrite(motor1pin1, LOW);
-      digitalWrite(motor1pin2, HIGH);
-      digitalWrite(motor2pin1, HIGH);
-      digitalWrite(motor2pin2, LOW);
-      delay(50);
-      digitalWrite(motor1pin1, LOW);
-      digitalWrite(motor1pin2, LOW);
-      digitalWrite(motor2pin1, LOW);
-      digitalWrite(motor2pin2, LOW);
-
-    }
+    if(motorDirection == 1)
+    {}
     else if(motorDirection == 3)  // 3 = motor pins are already in LOW/LOW, cart is initialized and ready to go
     {
       digitalWrite(boardLED, LOW);  // turn off the light that was turned on when the gyroscope was online
       initializedCart = 1;
-    }
-    else  // 1 = stationary
-    {
-      digitalWrite(motor1pin1, LOW);
-      digitalWrite(motor1pin2, LOW);
-      digitalWrite(motor2pin1, LOW);
-      digitalWrite(motor2pin2, LOW);
     }
   }  // END CART centered INITIALIZATION
   else if (initializedCart == 1)
@@ -181,3 +144,50 @@ void loop() {
   delay(50);
   
 }
+
+
+
+
+
+
+    /*
+    // 0 = move towards wall
+    // 1 = stationary
+    // 2 = move away from wall
+    // > 3 cart was initialized and in good position.
+    // if we want to use the PWM to modify the speed, we'll use: analogWrite(motor1PWM, speed);
+    // we need to assign speed
+
+    if(motorDirection == 0)  // 0 = move towards wall
+    {
+      digitalWrite(motor1pin1, HIGH);
+      digitalWrite(motor1pin2, LOW);
+      digitalWrite(motor2pin1, LOW);
+      digitalWrite(motor2pin2, HIGH);
+      delay(50);
+      digitalWrite(motor1pin1, LOW);
+      digitalWrite(motor1pin2, LOW);
+      digitalWrite(motor2pin1, LOW);
+      digitalWrite(motor2pin2, LOW);
+    } 
+    else if(motorDirection == 2)  // 2 = too close, move away from the wall!
+    {
+      digitalWrite(motor1pin1, LOW);
+      digitalWrite(motor1pin2, HIGH);
+      digitalWrite(motor2pin1, HIGH);
+      digitalWrite(motor2pin2, LOW);
+      delay(50);
+      digitalWrite(motor1pin1, LOW);
+      digitalWrite(motor1pin2, LOW);
+      digitalWrite(motor2pin1, LOW);
+      digitalWrite(motor2pin2, LOW);
+
+    }
+    else  // 1 = stationary
+    {
+      digitalWrite(motor1pin1, LOW);
+      digitalWrite(motor1pin2, LOW);
+      digitalWrite(motor2pin1, LOW);
+      digitalWrite(motor2pin2, LOW);
+    }
+    */
