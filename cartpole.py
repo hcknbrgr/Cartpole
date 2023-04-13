@@ -17,20 +17,21 @@ import matplotlib.pyplot as plt
 # Test the cart distance for initialization.
 arduino = serial.Serial('COM7', 115200, write_timeout=0.5, timeout=.5)
 time.sleep(2)
-cartCenteredCounts = 0
+cartCenteredCounts = 20  # TODO: CHANGE THIS TO 0 .. TESTING MPU
 poleVerticalCounts = 0
 initializeDistanceData = []
 initializeVerticalData = []
-while cartCenteredCounts <= 100:  # INITIALIZE CART POSITION
+while cartCenteredCounts <= 10:  # INITIALIZE CART POSITION
     line = arduino.readline()
     if line:
         string = line.decode()
         num = int(string)
         cm = (num / 2.0) / 29.1
-        if num < 8.0:  # TOO CLOSE, MOVE AWAY FROM WALL
+        print(cm)
+        if cm < 7.0 or cm > 1200:  # TOO CLOSE, MOVE AWAY FROM WALL
             arduino.write(struct.pack('>B', 2))
             cartCenteredCounts = 0
-        elif num > 9.0:  # TOO FAR, MOVE CLOSER TO THE WALL
+        elif cm > 9.0:  # TOO FAR, MOVE CLOSER TO THE WALL
             arduino.write(struct.pack('>B', 0))
             cartCenteredCounts = 0
         else:  # CART IS CENTERED, LET'S MAKE SURE IT'S STAYING STABLE
@@ -39,21 +40,24 @@ while cartCenteredCounts <= 100:  # INITIALIZE CART POSITION
                 arduino.write(struct.pack('>B', 3))
             else:   #  MAKE SURE THE CART IS STAYING CENTERED
                 arduino.write(struct.pack('>B', 1))
-        initializeDistanceData.append(num)
-#  END CART INITIALIZED POSITION
+        initializeDistanceData.append(cm)
+#  END CART INITIALIZED POSITION on board LED should turn off
 #  INITIALIZE THE ACCELEROMETER POSITION
-while poleVerticalCounts < 3:
+while poleVerticalCounts < 20:
     line = arduino.readline()
     if line:
         string = line.decode()
         num = int(string)
+        print(num)
         initializeVerticalData.append(num)
-        if num == 90:  # if it's vertical then get ready to go
+        if num < -86:  # if it's vertical then get ready to go
             poleVerticalCounts += 1
             arduino.write(struct.pack('>B', 0))
 arduino.write(struct.pack('>B', 1))  # cart has been vertical for a total of 3 read cycles
 
-#  CART IS COMPLETELY INITIALIZED, DO AN EPISODE
+#  CART IS COMPLETELY INITIALIZED, DO AN EPISODE!  The on-board LED should turn on.
+
+
 
 arduino.close()
 
