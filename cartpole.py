@@ -21,6 +21,7 @@ cartCenteredCounts = 0
 poleVerticalCounts = 0
 initializeDistanceData = []
 initializeVerticalData = []
+currentState = []
 while cartCenteredCounts != 10:  # INITIALIZE CART POSITION
     line = arduino.readline()
     if line:
@@ -52,6 +53,15 @@ while poleVerticalCounts < 20:
 arduino.write(struct.pack('>B', 1))  # cart has been vertical for a total of 3 read cycles
 
 #  CART IS COMPLETELY INITIALIZED, DO AN EPISODE!  The on-board LED should turn on.
+runningEpisode = 0
+while runningEpisode == 0:
+    line = arduino.readline().strip()
+    if line:
+        string = line.decode().split('/')
+        for a in string:
+            currentState.append(float(a))
+
+        runningEpisode=1
 
 
 
