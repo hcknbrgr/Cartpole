@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 # establish bounds to create buckets for state values to establish the capability for q values in a continuous environment
 state_value_bounds = []
 state_value_bounds[0] = (5, 15)  # bounds are limited to +/- 5 from center position of 10cm
-state_value_bounds[1] = (-1, 1)  # velocity is either left or right
+state_value_bounds[1] = (-255, 255)  # negative is towards wall, positive is away from wall
 state_value_bounds[2] = (78, 102)      #pole angle +/- 12 degrees from vertical todo confirm vertical is 90 degrees
 state_value_bounds[3] = (-4, 4)   # angular velocity from gyroscope
 no_buckets = (1, 1, 6, 3)       # utilize example bucketization from
