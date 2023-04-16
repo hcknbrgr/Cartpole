@@ -46,7 +46,7 @@ int echoPin = 12;   // Echo
 
 MPU6050 mpu;
 int initializedCart = 2;   // initialize the distance for the cart
-int speed = 0;  // 140 - 255
+int speed = 0;  // 150 - 255
 int motorDirection = 1; // Serial Input to determine which direction to send the motor in. 1 = stationary
 int velocity = 0;
 
@@ -55,6 +55,15 @@ void moveCart(int direction, int speed)
     // 0 = move towards wall
     // 1 = stationary
     // 2 = move away from wall
+    if(speed<150) 
+    {
+      speed = 150;
+    }
+    if(speed>255) 
+    {
+      speed = 255;
+    }
+    
     if(motorDirection == 0)  // 0 = move towards wall
     {
       analogWrite(motor1PWM, speed);
@@ -130,7 +139,8 @@ void loop() {
     digitalWrite(trigPin, LOW);
     pinMode(echoPin, INPUT);
     distance = pulseIn(echoPin, HIGH);
-    Serial.println(distance);  //int cm = (distance/2) / 29.1;
+    distance = (distance/2.0) / 29.1;  //int cm = (distance/2) / 29.1;
+    Serial.println(distance);  
     Serial.flush();
     while(Serial.available()==0)
     {}
@@ -163,10 +173,8 @@ void loop() {
   }
   else if (initializedCart == 2)  // CART IS INITIALIZED,
   {
-    // BEGIN DQN EPISODE
+    // Run the episode.  Send state information, execute action given from NN, repeat until get signal to end
     // The state for each step = [Cart position, cart velocity, pole angle, pole angle velocity]
-    // TODO: SEND THE STATE, CONTINUE CURRENT ACTION, WAIT FOR ACTION FROM DQN, EXECUTE ACTION
-    // TODO: Figure out how to send an array over the serial
     delay(1500);
     digitalWrite(trigPin, LOW);
     delayMicroseconds(5);
@@ -175,7 +183,8 @@ void loop() {
     digitalWrite(trigPin, LOW);
     pinMode(echoPin, INPUT);
     distance = pulseIn(echoPin, HIGH); // this is the cart position
-    velocity = speed * (motorDirection - 1);  //direction 0 = forwards, 2 = backwards subtract 1 to determine positive/negative velocity
+    distance = (distance/2.0) / 29.1;  //int cm = (distance/2) / 29.1;
+    velocity = speed * (motorDirection - 1);  //direction 0 = towards wall, 2 = away from wall subtract 1 to determine positive/negative velocity
     Vector normAccel = mpu.readNormalizeAccel();
     poleAngle = (atan2(normAccel.XAxis, normAccel.ZAxis)*180.0)/M_PI;
     Vector normGyro = mpu.readNormalizeGyro();
@@ -189,6 +198,38 @@ void loop() {
     Serial.print('/');
     Serial.println(angularVelocity);
     Serial.flush();
+
+    while(Serial.available()==0)
+    {}
+    if(Serial.available()>0) {
+      motorDirection = Serial.read(); // incoming data = 0 towards wall, 1 away from wall, 2 End of episode
+    }
+    if(motorDirection == 0)      //increase speed towards wall
+    {
+      if(velocity<0) // if it's heading towards the wall, then increase the speed
+      {
+        speed = speed+50;
+      }
+      else speed = 150;
+      moveCart(0, speed);
+      //if the cart is heading away from wall, then start moving towards the wall at min speed, else increase speed
+    }
+    else if(motorDirection == 1)      //increase speed away from wall
+    {
+      if(velocity>0) // if it's heading away from the wall, then increase the speed
+      {
+        speed = speed+50;
+      }
+      else speed = 150;
+      moveCart(2, speed);
+      //if the cart is heading towards  wall, then start moving away from the wall at min speed, else increase speed
+    }
+    else      // end of episode, halt motor and restart 
+    {
+      initializedCart = 0;
+      moveCart(1, 0);  // 1 is stop the cart
+    }
+
     
   }
   
