@@ -177,7 +177,7 @@ for epoch in range(epochs):
             if reward != 1:
                 status = 0
             # end while loop  // end of single epoch
-        arduino.write(struct.pack('>B', 3))  #  send a '3' to signal end of episode
+        arduino.write(struct.pack('>B', 2))  #  send a '2' to signal end of episode
         if epsilon > 0.01:
             epsilon -= (1.0 / epochs)  # linear
         episodeRewards.append(timeStep)
