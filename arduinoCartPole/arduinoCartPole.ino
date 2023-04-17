@@ -45,8 +45,8 @@ int trigPin = 11;   // Trigger
 int echoPin = 12;   // Echo
 
 MPU6050 mpu;
-int initializedCart = 2;   // initialize the distance for the cart
-int speed = 0;  // 150 - 255
+int initializedCart = 0;   // initialize the distance for the cart
+int speed = 0;  // 175 - 255
 int motorDirection = 1; // Serial Input to determine which direction to send the motor in. 1 = stationary
 int velocity = 0;
 
@@ -55,9 +55,9 @@ void moveCart(int direction, int speed)
     // 0 = move towards wall
     // 1 = stationary
     // 2 = move away from wall
-    if(speed<150) 
+    if(speed<175) 
     {
-      speed = 150;
+      speed = 175;
     }
     if(speed>255) 
     {
@@ -132,6 +132,7 @@ void loop() {
 
   if(initializedCart == 0)
   {  
+    moveCart(1, 0);  // 1 is stop the cart
     digitalWrite(trigPin, LOW);
     delayMicroseconds(5);
     digitalWrite(trigPin, HIGH);
@@ -153,29 +154,35 @@ void loop() {
     {
       digitalWrite(boardLED, LOW);  // turn off the light that was turned on when the gyroscope was online
       initializedCart = 1;
+      delay(500);
     }
   }  // END CART centered INITIALIZATION
   else if (initializedCart == 1)
   {
+    
     Vector normAccel = mpu.readNormalizeAccel();
     poleAngle = (atan2(normAccel.XAxis, normAccel.ZAxis)*180.0)/M_PI;
-    
     Serial.println(poleAngle);   
     Serial.flush();
+
+    while(Serial.available()==0)
+    {}
+
     if(Serial.available()>0) {
       verticalInitialization = Serial.read(); 
     }
-    if (verticalInitialization == 1)
+    if(verticalInitialization == 0) {}
+    else if (verticalInitialization == 1)
     {
       initializedCart = 2;
       digitalWrite(boardLED, HIGH);  // Cart is initialized and ready to go, turn on the board LED!
     }
+    
   }
   else if (initializedCart == 2)  // CART IS INITIALIZED,
   {
     // Run the episode.  Send state information, execute action given from NN, repeat until get signal to end
     // The state for each step = [Cart position, cart velocity, pole angle, pole angle velocity]
-    delay(1500);
     digitalWrite(trigPin, LOW);
     delayMicroseconds(5);
     digitalWrite(trigPin, HIGH);
@@ -210,7 +217,7 @@ void loop() {
       {
         speed = speed+50;
       }
-      else speed = 150;
+      else speed = 175;
       moveCart(0, speed);
       //if the cart is heading away from wall, then start moving towards the wall at min speed, else increase speed
     }
@@ -220,7 +227,7 @@ void loop() {
       {
         speed = speed+50;
       }
-      else speed = 150;
+      else speed = 175;
       moveCart(2, speed);
       //if the cart is heading towards  wall, then start moving away from the wall at min speed, else increase speed
     }
@@ -229,8 +236,6 @@ void loop() {
       initializedCart = 0;
       moveCart(1, 0);  // 1 is stop the cart
     }
-
-    
   }
   
   delay(50);

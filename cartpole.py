@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 # todo: save -- model, loss, qvals, running reward (timestep at end of epoch)
 
 # establish bounds to create buckets for state values to establish the capability for q values in a continuous environment
-state_value_bounds = []
+state_value_bounds = [None] * 4
 state_value_bounds[0] = (5, 15)  # bounds are limited to +/- 5 from center position of 10cm
 state_value_bounds[1] = (-255, 255)  # negative is towards wall, positive is away from wall
 state_value_bounds[2] = (78, 102)      #pole angle +/- 12 degrees from vertical todo confirm vertical is 90 degrees
@@ -55,7 +55,7 @@ no_streaks = 0
 
 # The state for each step = [Cart position, cart "velocity", pole angle, pole angular velocity]
 
-epochs = 200   # how many times we want to train
+epochs = 10   # how many times we want to train
 losses = []   # how well is our neural net doing for each run
 
 
@@ -99,7 +99,7 @@ for epoch in range(epochs):
             string = line.decode()
             num = int(string)
             print(num)
-            if 9.0 < num < 11.0:  # CART IS CENTERED, MAKE SURE IT STAYS THERE A FEW SECONDS
+            if 9.0 <= num <= 11.0:  # CART IS CENTERED, MAKE SURE IT STAYS THERE A FEW SECONDS
                 cartCenteredCounts += 1
                 if cartCenteredCounts == 10:   # IF IT'S BEEN CENTERED LONG ENOUGH THEN THE SIGNAL THAT IT'S GOOD
                     arduino.write(struct.pack('>B', 3))
@@ -113,13 +113,16 @@ for epoch in range(epochs):
         line = arduino.readline()
         if line:
             string = line.decode()
-            num = int(string)
+            num = float(string)
             print(num)
-            if 88 < num < 92:  # if it's vertical then get ready to go
+            if 88.0 < num < 92.0:  # if it's vertical then get ready to go
                 poleVerticalCounts += 1
+                if poleVerticalCounts == 20:
+                    arduino.write(struct.pack('>B', 1))  # cart has been vertical for a total of 3 read cycles
+                else:
+                    arduino.write(struct.pack('>B', 0))
+            else:
                 arduino.write(struct.pack('>B', 0))
-    arduino.write(struct.pack('>B', 1))  # cart has been vertical for a total of 3 read cycles
-
     #  CART IS COMPLETELY INITIALIZED, DO AN EPISODE!  The on-board LED should turn on.
 
     timeStep = 0
@@ -128,8 +131,10 @@ for epoch in range(epochs):
         string = line.decode().split('/')
         for a in string:
             currentState.append(float(a))
+        print("Current State: ", currentState)
         state_ = np.array(bucketize(currentState))
         currentState.clear()
+        print("state", state_)
         state1 = torch.from_numpy(state_).float()
         status = 1
         while status == 1:
@@ -151,7 +156,9 @@ for epoch in range(epochs):
             # observation state = (distance, velocity, poleAngle, angularVelocity)
             if 5.0 < currentState[0] < 15.0 and 78.0 < currentState[2] < 102.0:
                 reward = 1
+                print(currentState)
             else:
+                print("Failed state: ", currentState)
                 reward = 0
             if timeStep > max_time_steps:
                 reward = 0
