@@ -7,7 +7,6 @@ import serial
 import time
 import struct  # for sending data as bytes
 import matplotlib.pyplot as plt
-import csv
 
 # todo: save -- model, loss, qvals, running reward (timestep at end of epoch)
 
@@ -15,9 +14,9 @@ import csv
 state_value_bounds = [None] * 4
 state_value_bounds[0] = (5, 15)  # bounds are limited to +/- 5 from center position of 10cm
 state_value_bounds[1] = (-255, 255)  # negative is towards wall, positive is away from wall
-state_value_bounds[2] = (78, 102)      #pole angle +/- 12 degrees from vertical todo confirm vertical is 90 degrees
-state_value_bounds[3] = (-4, 4)   # angular velocity from gyroscope
-no_buckets = (1, 1, 6, 3)       # utilize example bucketization from
+state_value_bounds[2] = (70, 110)      #pole angle +/- 20 degrees from vertical
+state_value_bounds[3] = (-150, 150)   # angular velocity from gyroscope
+no_buckets = (1, 1, 6, 4)       # utilize example bucketization from, modify no of buckets slightly
                                 # Balancing a CartPole System with Reinforcement Learning - A Tutorial
                                 # by Swagat Kumar
 
@@ -34,19 +33,26 @@ model = torch.nn.Sequential(
     torch.nn.ReLU(),
     torch.nn.Linear(l3, l4)
 )
-if exists('tensor.pt'):
-    model.load_state_dict(torch.load('tensor.pt'))
-    model.eval()
-
 loss_fn = torch.nn.MSELoss()
 learning_rate = 1e-3
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+epoch_ = 0
+
+if exists('tensor.tar'):
+    checkpoint = torch.load('tensor.tar')
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    epoch_ = checkpoint['epoch']
+    loss = checkpoint['loss']
+    model.train()
+    print (epoch_)
+
 
 # setup hyperparameters for RL agent
 gamma = .99  # discount factor, how much we weight rewards in later states
-epsilon = .9   # start with lots of exploration and decay to exploitation
+epsilon = 1   # start with lots of exploration and decay to exploitation
 max_time_steps = 250
-solved_time = 199
+solved_time = 200
 no_streaks = 0
 
 # Cart Directions -
@@ -56,7 +62,7 @@ no_streaks = 0
 
 # The state for each step = [Cart position, cart "velocity", pole angle, pole angular velocity]
 
-epochs = 100   # how many times we want to train
+epochs = 200   # how many times we want to train
 losses = []   # how well is our neural net doing for each run
 
 
@@ -100,7 +106,7 @@ for epoch in range(epochs):
             string = line.decode()
             num = int(string)
             print(num)
-            if 9.0 <= num <= 11.0:  # CART IS CENTERED, MAKE SURE IT STAYS THERE A FEW SECONDS
+            if 11.0 <= num <= 14.0:  # CART IS CENTERED, MAKE SURE IT STAYS THERE A FEW SECONDS
                 cartCenteredCounts += 1
                 if cartCenteredCounts == 10:   # IF IT'S BEEN CENTERED LONG ENOUGH THEN THE SIGNAL THAT IT'S GOOD
                     arduino.write(struct.pack('>B', 3))
@@ -119,7 +125,8 @@ for epoch in range(epochs):
             if 88.0 < num < 92.0:  # if it's vertical then get ready to go
                 poleVerticalCounts += 1
                 if poleVerticalCounts == 5:
-                    arduino.write(struct.pack('>B', 1))  # cart has been vertical for a total of 3 read cycles
+                    arduino.write(struct.pack('>B', 1))  # cart has been vertical for a total of 5 read cycles
+                    print("START EPOCH")
                 else:
                     arduino.write(struct.pack('>B', 0))
             else:
@@ -141,8 +148,10 @@ for epoch in range(epochs):
             qvals_ = qvals.data.numpy()  # underscore is denoting changed data
             if random.random() < epsilon:
                 action_ = np.random.randint(0, 2)  # 0 towards wall, 1 away from wall
+                print("Explore: ", action_)
             else:
                 action_ = np.argmax(qvals_)
+                print("Exploit: ", action_)
             arduino.write(struct.pack('>B', action_))  # write the direction to send the cart in
             # wait for updated state
             line = arduino.readline().strip()  # observation state = (distance, velocity, poleAngle, angularVelocity)
@@ -151,15 +160,16 @@ for epoch in range(epochs):
                 for a in string:
                     currentState.append(float(a))
             state2_ = np.array(bucketize(currentState))
+            print("State: ", currentState, "Bucket: ", state2_)
             state2 = torch.from_numpy(state2_).float()
             # observation state = (distance, velocity, poleAngle, angularVelocity)
-            if 5.0 < currentState[0] < 15.0 and 70.0 < currentState[2] < 110.0:
+            if 5.0 < currentState[0] < 20.0 and 70.0 < currentState[2] < 110.0:
                 reward = 1
             else:
                 print("Failed state: ", currentState)
-                reward = 0
+                reward = -1
             if timeStep > max_time_steps:
-                reward = 0
+                reward = 10
             currentState.clear()
             with torch.no_grad():
                 newQ = model(state2)
@@ -187,7 +197,13 @@ for epoch in range(epochs):
             epsilon -= (1.0 / epochs)  # linear
         episodeRewards.append(timeStep)
         if epoch % 10 == 0:
-            torch.save(model.state_dict(), 'tensor.pt')
+            torch.save({
+                'epoch': (epoch+epoch_),
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': loss
+            }, 'tensor.tar')
+
 
 
 arduino.close()
