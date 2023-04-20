@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 state_value_bounds = [None] * 4
 state_value_bounds[0] = (5, 15)  # bounds are limited to +/- 5 from center position of 10cm
 state_value_bounds[1] = (-255, 255)  # negative is towards wall, positive is away from wall
-state_value_bounds[2] = (70, 110)      #pole angle +/- 20 degrees from vertical
+state_value_bounds[2] = (60, 120)      #pole angle +/- 30 degrees from vertical
 state_value_bounds[3] = (-150, 150)   # angular velocity from gyroscope
 no_buckets = (1, 1, 6, 4)       # utilize example bucketization from, modify no of buckets slightly
                                 # Balancing a CartPole System with Reinforcement Learning - A Tutorial
@@ -54,7 +54,7 @@ epsilon = .99   # start with lots of exploration and decay to exploitation
 min_epsilon = 0.01
 max_time_steps = 250.0
 solved_time = 200.0
-epsilon_delta = (epsilon - min_epsilon)/solved_time
+epsilon_delta = (epsilon - min_epsilon)/solved_time*2
 epsilon = epsilon-epsilon_delta*epoch_  # if we are resuming training, then epsilon needs to resume too
 no_streaks = 0
 
@@ -167,7 +167,7 @@ for epoch in range(epochs):
             print("State: ", currentState, "Bucket: ", state2_)
             state2 = torch.from_numpy(state2_).float()
             # observation state = (distance, velocity, poleAngle, angularVelocity)
-            if 5.0 < currentState[0] < 20.0 and 70.0 < currentState[2] < 110.0:
+            if 5.0 < currentState[0] < 20.0 and 60.0 < currentState[2] < 120.0:
                 reward = 1
             else:
                 print("Failed state: ", currentState)
