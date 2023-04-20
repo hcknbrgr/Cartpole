@@ -11,12 +11,12 @@ import matplotlib.pyplot as plt
 # todo: save -- model, loss, qvals, running reward (timestep at end of epoch)
 
 # establish bounds to create buckets for state values to establish the capability for q values in a continuous environment
-state_value_bounds = [None] * 4
+state_value_bounds = [None] * 4  # [Cart position, cart "velocity", pole angle, pole angular velocity]
 state_value_bounds[0] = (5, 15)  # bounds are limited to +/- 5 from center position of 10cm
 state_value_bounds[1] = (-255, 255)  # negative is towards wall, positive is away from wall
 state_value_bounds[2] = (60, 120)      #pole angle +/- 30 degrees from vertical
 state_value_bounds[3] = (-150, 150)   # angular velocity from gyroscope
-no_buckets = (1, 1, 6, 4)       # utilize example bucketization from, modify no of buckets slightly
+no_buckets = (1, 10, 10, 8)       # utilize example bucketization from, modify no of buckets for greater control
                                 # Balancing a CartPole System with Reinforcement Learning - A Tutorial
                                 # by Swagat Kumar
 
@@ -54,7 +54,7 @@ epsilon = .99   # start with lots of exploration and decay to exploitation
 min_epsilon = 0.01
 max_time_steps = 250.0
 solved_time = 200.0
-epsilon_delta = (epsilon - min_epsilon)/solved_time*2
+epsilon_delta = (epsilon - min_epsilon)/(solved_time*2)
 epsilon = epsilon-epsilon_delta*epoch_  # if we are resuming training, then epsilon needs to resume too
 no_streaks = 0
 
@@ -65,7 +65,7 @@ no_streaks = 0
 
 # The state for each step = [Cart position, cart "velocity", pole angle, pole angular velocity]
 
-epochs = 100   # how many times we want to train
+epochs = 50   # how many times we want to train
 losses = []   # how well is our neural net doing for each run
 
 

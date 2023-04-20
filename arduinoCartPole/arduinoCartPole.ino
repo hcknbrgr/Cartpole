@@ -190,7 +190,10 @@ if(initializedCart == 0)
     pinMode(echoPin, INPUT);
     distance = pulseIn(echoPin, HIGH); // this is the cart position
     distance = (distance/2.0) / 29.1;  //int cm = (distance/2) / 29.1;
-    velocity = speed * (motorDirection - 1);  //direction 0 = towards wall, 2 = away from wall subtract 1 to determine positive/negative velocity
+    if(motorDirection==0)
+      velocity = speed * (-1);  //direction 0 = towards wall, 1 = away from wall subtract 1 to determine positive/negative velocity
+    else
+      velocity = speed;
     Vector normAccel = mpu.readNormalizeAccel();
     poleAngle = (atan2(normAccel.XAxis, normAccel.ZAxis)*180.0)/M_PI;
     Vector normGyro = mpu.readNormalizeGyro();
