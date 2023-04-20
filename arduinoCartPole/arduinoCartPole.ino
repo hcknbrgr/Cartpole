@@ -64,7 +64,7 @@ void moveCart(int direction, int speed)
       speed = 255;
     }
     
-    if(motorDirection == 0)  // 0 = move towards wall
+    if(direction == 0)  // 0 = move towards wall
     {
       analogWrite(motor1PWM, speed);
       analogWrite(motor2PWM, speed);
@@ -73,11 +73,10 @@ void moveCart(int direction, int speed)
       digitalWrite(motor2pin1, LOW);
       digitalWrite(motor2pin2, HIGH);
     } 
-    else if(motorDirection == 2)  // 2 = too close, move away from the wall!
+    else if(direction == 2)  // 2 = too close, move away from the wall!
     {
       analogWrite(motor1PWM, speed);
       analogWrite(motor2PWM, speed);
-      analogWrite(motor1PWM, speed);
       digitalWrite(motor1pin1, LOW);
       digitalWrite(motor1pin2, HIGH);
       digitalWrite(motor2pin1, HIGH);
@@ -130,7 +129,7 @@ void loop() {
   // The sensor is triggered by a HIGH pulse of 10 or more microseconds.
   // Give a short LOW pulse beforehand to ensure a clean HIGH pulse;
 
-  if(initializedCart == 0)
+if(initializedCart == 0)
   {  
     moveCart(1, 0);  // 1 is stop the cart
     digitalWrite(trigPin, LOW);
