@@ -46,7 +46,7 @@ int echoPin = 12;   // Echo
 
 MPU6050 mpu;
 int initializedCart = 0;   // initialize the distance for the cart
-int speed = 0;  // 175 - 255
+int speed = 0;  // 150 - 255
 int motorDirection = 1; // Serial Input to determine which direction to send the motor in. 1 = stationary
 int velocity = 0;
 
@@ -55,9 +55,9 @@ void moveCart(int direction, int speed)
     // 0 = move towards wall
     // 1 = stationary
     // 2 = move away from wall
-    if(speed<175) 
+    if(speed<150) 
     {
-      speed = 175;
+      speed = 150;
     }
     if(speed>255) 
     {
@@ -216,7 +216,7 @@ if(initializedCart == 0)
       {
         speed = speed+50;
       }
-      else speed = 175;
+      else speed = 150;
       moveCart(0, speed);
       //if the cart is heading away from wall, then start moving towards the wall at min speed, else increase speed
     }
@@ -226,7 +226,7 @@ if(initializedCart == 0)
       {
         speed = speed+50;
       }
-      else speed = 175;
+      else speed = 150;
       moveCart(2, speed);
       //if the cart is heading towards  wall, then start moving away from the wall at min speed, else increase speed
     }
