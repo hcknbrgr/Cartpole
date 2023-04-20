@@ -50,9 +50,12 @@ if exists('tensor.tar'):
 
 # setup hyperparameters for RL agent
 gamma = .99  # discount factor, how much we weight rewards in later states
-epsilon = 1   # start with lots of exploration and decay to exploitation
-max_time_steps = 250
-solved_time = 200
+epsilon = .99   # start with lots of exploration and decay to exploitation
+min_epsilon = 0.01
+max_time_steps = 250.0
+solved_time = 200.0
+epsilon_delta = (epsilon - min_epsilon)/solved_time
+epsilon = epsilon-epsilon_delta*epoch_  # if we are resuming training, then epsilon needs to resume too
 no_streaks = 0
 
 # Cart Directions -
@@ -62,7 +65,7 @@ no_streaks = 0
 
 # The state for each step = [Cart position, cart "velocity", pole angle, pole angular velocity]
 
-epochs = 200   # how many times we want to train
+epochs = 100   # how many times we want to train
 losses = []   # how well is our neural net doing for each run
 
 
@@ -98,6 +101,7 @@ currentState = []
 episodeRewards = []
 
 for epoch in range(epochs):
+    epoch_ += 1
     cartCenteredCounts = 0
     poleVerticalCounts = 0
     while cartCenteredCounts != 10:  # INITIALIZE CART POSITION
@@ -194,7 +198,7 @@ for epoch in range(epochs):
             # end while loop  // end of single epoch
         arduino.write(struct.pack('>B', 2))  #  send a '2' to signal end of episode
         if epsilon > 0.01:
-            epsilon -= (1.0 / epochs)  # linear
+            epsilon -= epsilon_delta  # linear
         episodeRewards.append(timeStep)
         if epoch % 10 == 0:
             torch.save({
