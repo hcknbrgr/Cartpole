@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 state_value_bounds = [None] * 4  # [Cart position, cart "velocity", pole angle, pole angular velocity]
 state_value_bounds[0] = (5, 15)  # bounds are limited to +/- 5 from center position of 10cm
 state_value_bounds[1] = (-255, 255)  # negative is towards wall, positive is away from wall
-state_value_bounds[2] = (60, 120)      #pole angle +/- 30 degrees from vertical
+state_value_bounds[2] = (61, 121)      #pole angle +/- 30 degrees from vertical
 state_value_bounds[3] = (-150, 150)   # angular velocity from gyroscope
-no_buckets = (1, 10, 10, 8)       # utilize example bucketization from, modify no of buckets for greater control
+no_buckets = (1, 10, 10, 10)       # utilize example bucketization from, modify no of buckets for greater control
                                 # Balancing a CartPole System with Reinforcement Learning - A Tutorial
                                 # by Swagat Kumar
 
@@ -37,6 +37,7 @@ loss_fn = torch.nn.MSELoss()
 learning_rate = 1e-3
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 epoch_ = 0
+episodeRewards = []
 
 if exists('tensor.tar'):
     checkpoint = torch.load('tensor.tar')
@@ -54,8 +55,10 @@ epsilon = .99   # start with lots of exploration and decay to exploitation
 min_epsilon = 0.01
 max_time_steps = 250.0
 solved_time = 200.0
-epsilon_delta = (epsilon - min_epsilon)/(solved_time*2)
+epsilon_delta = 1.0/500.0
+print("epsilon delta: ", epsilon_delta)
 epsilon = epsilon-epsilon_delta*epoch_  # if we are resuming training, then epsilon needs to resume too
+print("starting epsilon: ", epsilon)
 no_streaks = 0
 
 # Cart Directions -
@@ -65,7 +68,7 @@ no_streaks = 0
 
 # The state for each step = [Cart position, cart "velocity", pole angle, pole angular velocity]
 
-epochs = 50   # how many times we want to train
+epochs = 20   # how many times we want to train
 losses = []   # how well is our neural net doing for each run
 
 
@@ -120,21 +123,22 @@ for epoch in range(epochs):
                 arduino.write(struct.pack('B', 1))  # if it's not, send that's it's not...
     #  END CART INITIALIZED POSITION on board LED should turn off
     #  INITIALIZE THE ACCELEROMETER POSITION
-    while poleVerticalCounts < 5:
+    while poleVerticalCounts < 3:
         line = arduino.readline()
         if line:
             string = line.decode()
             num = float(string)
             print(num)
-            if 88.0 < num < 92.0:  # if it's vertical then get ready to go
+            if 90.5 < num < 92.5:  # if it's vertical then get ready to go
                 poleVerticalCounts += 1
-                if poleVerticalCounts == 5:
-                    arduino.write(struct.pack('>B', 1))  # cart has been vertical for a total of 5 read cycles
+                if poleVerticalCounts == 3:
+                    arduino.write(struct.pack('>B', 1))  # cart has been vertical for a total of 3 consecutive cycles
                     print("START EPOCH")
                 else:
                     arduino.write(struct.pack('>B', 0))
             else:
                 arduino.write(struct.pack('>B', 0))
+                poleVerticalCounts = 0
     #  CART IS COMPLETELY INITIALIZED, DO AN EPISODE!  The on-board LED should turn on.
 
     timeStep = 0
@@ -164,16 +168,16 @@ for epoch in range(epochs):
                 for a in string:
                     currentState.append(float(a))
             state2_ = np.array(bucketize(currentState))
-            print("State: ", currentState, "Bucket: ", state2_)
             state2 = torch.from_numpy(state2_).float()
             # observation state = (distance, velocity, poleAngle, angularVelocity)
-            if 5.0 < currentState[0] < 20.0 and 60.0 < currentState[2] < 120.0:
+            if 5.0 < currentState[0] < 20.0 and 61.0 < currentState[2] < 121.0:
                 reward = 1
             else:
                 print("Failed state: ", currentState)
                 reward = -1
             if timeStep > max_time_steps:
                 reward = 10
+            print("State: ", currentState, "Bucket: ", state2_)
             currentState.clear()
             with torch.no_grad():
                 newQ = model(state2)
@@ -199,16 +203,15 @@ for epoch in range(epochs):
         arduino.write(struct.pack('>B', 2))  #  send a '2' to signal end of episode
         if epsilon > 0.01:
             epsilon -= epsilon_delta  # linear
+            print("epsilon: ", epsilon)
         episodeRewards.append(timeStep)
         if epoch % 10 == 0:
             torch.save({
-                'epoch': (epoch+epoch_),
+                'epoch': (epoch_),
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-                'loss': loss
+                'loss': loss,
             }, 'tensor.tar')
-
-
 
 arduino.close()
 
@@ -216,11 +219,11 @@ pylab.plot(episodeRewards)
 pylab.xlabel('Episode')
 pylab.ylabel('Duration')
 pylab.title('Episode Duration')
-pylab.savefig("EpisodeDuration.pdf", format="pdf")
+pylab.savefig("EpisodeDuration%d.pdf" % epoch_, format="pdf")
 
 pylab.figure(figsize=(15, 10))
 pylab.ylabel("Loss")
 pylab.xlabel("Training Steps")
 pylab.plot(losses)
-pylab.savefig("dqn_loss_plot.pdf", format="pdf")
+pylab.savefig("dqn_loss_plot%d.pdf" % epoch_, format="pdf")
 
