@@ -121,9 +121,12 @@ for epoch in range(epochs):
             currentState.append(float(a))
         # state_ = np.array(bucketize(currentState))
         state_ = np.array(currentState)
-        currentState.clear()
+
         state1 = torch.from_numpy(state_).float()
         status = 1
+        if len(currentState) != 4:
+            status = 0
+        currentState.clear()
         while status == 1:
             qvals = model(state1)  # get each of the qvals from the neural net
             qvals_ = qvals.data.numpy()  # underscore is denoting changed data
@@ -141,39 +144,43 @@ for epoch in range(epochs):
                 for a in string:
                     currentState.append(float(a))
             # state2_ = np.array(bucketize(currentState))
-            state2_ = np.array(currentState)
-            state2 = torch.from_numpy(state2_).float()
-            # observation state = (distance, velocity, poleAngle, angularVelocity)
-            if 5.0 < currentState[0] < 30.0 and 61.0 < currentState[2] < 121.0:
-                reward = 1
-            else:
-                print("Failed state: ", currentState)
-                reward = -1
-            if timeStep > solved_time:
-                reward = 10
-            #print("State: ", currentState, "Bucket: ", state2_)
-            print("state: ", currentState)
-            currentState.clear()
-            with torch.no_grad():
-                newQ = model(state2)
-            maxQ = torch.max(newQ)
+            if len(currentState) == 4:
+                state2_ = np.array(currentState)
+                state2 = torch.from_numpy(state2_).float()
+                # observation state = (distance, velocity, poleAngle, angularVelocity)
+                if 5.0 < currentState[0] < 30.0 and 61.0 < currentState[2] < 121.0:
+                    reward = 1
+                else:
+                    print("Failed state: ", currentState)
+                    reward = -1
+                if timeStep > solved_time:
+                    reward = 10
+                #print("State: ", currentState, "Bucket: ", state2_)
+                print("state: ", currentState)
+                currentState.clear()
+                with torch.no_grad():
+                    newQ = model(state2)
+                maxQ = torch.max(newQ)
+                if reward == 1:  # if we are moving -- this is good
+                    Y = reward + (gamma * maxQ)  # estimate for s'
+                else:
+                    Y = reward
 
-            if reward == 1:  # if we are moving -- this is good
-                Y = reward + (gamma * maxQ)  # estimate for s'
+                Y = torch.Tensor([Y]).detach()
+                X = qvals.squeeze()[action_]
+                loss = loss_fn(X, Y)
+                optimizer.zero_grad()  # update NN
+                loss.backward()
+                losses.append(loss.item())
+                optimizer.step()
+                state1 = state2
+                timeStep += 1
+                if reward != 1:
+                    status = 0
             else:
-                Y = reward
-
-            Y = torch.Tensor([Y]).detach()
-            X = qvals.squeeze()[action_]
-            loss = loss_fn(X, Y)
-            optimizer.zero_grad()  # update NN
-            loss.backward()
-            losses.append(loss.item())
-            optimizer.step()
-            state1 = state2
-            timeStep += 1
-            if reward != 1:
+                print("Failed to read complete state")
                 status = 0
+
             # end while loop  // end of single epoch
         arduino.write(struct.pack('>B', 9))  #  send a '9' to signal end of episode
         if epsilon > 0.01:
