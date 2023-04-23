@@ -47,25 +47,18 @@ int echoPin = 12;   // Echo
 MPU6050 mpu;
 int initializedCart = 0;   // initialize the distance for the cart
 int speed = 0;  // 150 - 255
-int motorDirection = 1; // Serial Input to determine which direction to send the motor in. 1 = stationary
+int motorDirection = 3; // Serial Input to determine which direction to send the motor in. 3 = stationary
 int velocity = 0;
 
-void moveCart(int direction, int speed)
+void moveCart(int direction)
 {
-    // 0 = move towards wall
-    // 1 = stationary
-    // 2 = move away from wall
-    if(speed<150) 
-    {
-      speed = 150;
-    }
-    if(speed>255) 
-    {
-      speed = 255;
-    }
+    // 0-2 towards wall 0 - fast, 2 - slow
+    // 3 stop
+    // 4-6 away from wall, 4 slow, 6 fast
     
-    if(direction == 0)  // 0 = move towards wall
+    if(direction == 0)  // 0-2 towards wall 0 - fast, 2 - slow
     {
+      speed = 250;
       analogWrite(motor1PWM, speed);
       analogWrite(motor2PWM, speed);
       digitalWrite(motor1pin1, HIGH);
@@ -73,8 +66,29 @@ void moveCart(int direction, int speed)
       digitalWrite(motor2pin1, LOW);
       digitalWrite(motor2pin2, HIGH);
     } 
-    else if(direction == 2)  // 2 = too close, move away from the wall!
+    else if(direction == 1)  // 0-2 towards wall 0 - fast, 2 - slow
     {
+      speed = 200;
+      analogWrite(motor1PWM, speed);
+      analogWrite(motor2PWM, speed);
+      digitalWrite(motor1pin1, HIGH);
+      digitalWrite(motor1pin2, LOW);
+      digitalWrite(motor2pin1, LOW);
+      digitalWrite(motor2pin2, HIGH);
+    } 
+    else if(direction == 2)  // 0-2 towards wall 0 - fast, 2 - slow
+    {
+      speed = 150;
+      analogWrite(motor1PWM, speed);
+      analogWrite(motor2PWM, speed);
+      digitalWrite(motor1pin1, HIGH);
+      digitalWrite(motor1pin2, LOW);
+      digitalWrite(motor2pin1, LOW);
+      digitalWrite(motor2pin2, HIGH);
+    } 
+    else if(direction == 4)  // 4-6 away from wall, 4 slow, 6 fast
+    {
+      speed = 150;
       analogWrite(motor1PWM, speed);
       analogWrite(motor2PWM, speed);
       digitalWrite(motor1pin1, LOW);
@@ -82,8 +96,29 @@ void moveCart(int direction, int speed)
       digitalWrite(motor2pin1, HIGH);
       digitalWrite(motor2pin2, LOW);
     }
-    else  // 1 = stationary
+    else if(direction == 5)  // 4-6 away from wall, 4 slow, 6 fast
     {
+      speed = 200;
+      analogWrite(motor1PWM, speed);
+      analogWrite(motor2PWM, speed);
+      digitalWrite(motor1pin1, LOW);
+      digitalWrite(motor1pin2, HIGH);
+      digitalWrite(motor2pin1, HIGH);
+      digitalWrite(motor2pin2, LOW);
+    }
+    else if(direction == 6)  // 4-6 away from wall, 4 slow, 6 fast
+    {
+      speed = 250;
+      analogWrite(motor1PWM, speed);
+      analogWrite(motor2PWM, speed);
+      digitalWrite(motor1pin1, LOW);
+      digitalWrite(motor1pin2, HIGH);
+      digitalWrite(motor2pin1, HIGH);
+      digitalWrite(motor2pin2, LOW);
+    }
+    else  // 3 = stationary
+    {
+      speed=0;
       analogWrite(motor1PWM, speed);
       analogWrite(motor2PWM, speed);
       digitalWrite(motor1pin1, LOW);
@@ -131,7 +166,7 @@ void loop() {
 
 if(initializedCart == 0)
   {  
-    moveCart(1, 0);  // 1 is stop the cart
+    moveCart(3);  // 1 is stop the cart
     digitalWrite(trigPin, LOW);
     delayMicroseconds(5);
     digitalWrite(trigPin, HIGH);
@@ -190,15 +225,17 @@ if(initializedCart == 0)
     pinMode(echoPin, INPUT);
     distance = pulseIn(echoPin, HIGH); // this is the cart position
     distance = (distance/2.0) / 29.1;  //int cm = (distance/2) / 29.1;
-    if(motorDirection==0)
-      velocity = speed * (-1);  //direction 0 = towards wall, 1 = away from wall subtract 1 to determine positive/negative velocity
+    if(motorDirection==0||motorDirection==1||motorDirection==2)
+      velocity = -250+(motorDirection)*50;  
+    else if(motorDirection==4||motorDirection==5||motorDirection==6)
+      velocity = (motorDirection-1)*50;
     else
-      velocity = speed;
+      velocity = 0;
     Vector normAccel = mpu.readNormalizeAccel();
     poleAngle = (atan2(normAccel.XAxis, normAccel.ZAxis)*180.0)/M_PI;
     Vector normGyro = mpu.readNormalizeGyro();
     angularVelocity=normGyro.YAxis;
-
+    Serial.flush();
     Serial.print(distance);
     Serial.print('/');
     Serial.print(velocity);
@@ -213,31 +250,14 @@ if(initializedCart == 0)
     if(Serial.available()>0) {
       motorDirection = Serial.read(); // incoming data = 0 towards wall, 1 away from wall, 2 End of episode
     }
-    if(motorDirection == 0)      //increase speed towards wall
-    {
-      if(velocity<0) // if it's heading towards the wall, then increase the speed
-      {
-        speed = speed+50;
-      }
-      else speed = 150;
-      moveCart(0, speed);
-      //if the cart is heading away from wall, then start moving towards the wall at min speed, else increase speed
-    }
-    else if(motorDirection == 1)      //increase speed away from wall
-    {
-      if(velocity>0) // if it's heading away from the wall, then increase the speed
-      {
-        speed = speed+50;
-      }
-      else speed = 150;
-      moveCart(2, speed);
-      //if the cart is heading towards  wall, then start moving away from the wall at min speed, else increase speed
-    }
-    else      // end of episode, halt motor and restart 
+    if(motorDirection == 9)
     {
       initializedCart = 0;
-      moveCart(1, 0);  // 1 is stop the cart
+      moveCart(3); // end of episode, halt motor and restart
     }
+    else
+      moveCart(motorDirection);
+
   }
   
   delay(50);

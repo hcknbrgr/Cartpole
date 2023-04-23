@@ -140,8 +140,8 @@ for epoch in range(epochs):
                 string = line.decode().split('/')
                 for a in string:
                     currentState.append(float(a))
-            #state2_ = np.array(bucketize(currentState))
-            state2_= np.array(currentState)
+            # state2_ = np.array(bucketize(currentState))
+            state2_ = np.array(currentState)
             state2 = torch.from_numpy(state2_).float()
             # observation state = (distance, velocity, poleAngle, angularVelocity)
             if 5.0 < currentState[0] < 30.0 and 61.0 < currentState[2] < 121.0:
