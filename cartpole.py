@@ -6,9 +6,7 @@ from matplotlib import pylab
 import serial
 import time
 import struct  # for sending data as bytes
-import matplotlib.pyplot as plt
-
-# todo: save -- model, loss, qvals, running reward (timestep at end of epoch)
+import csv
 
 # set up neural net
 l1 = 4     # Layer 1 -- set up neural net with the number of inputs
@@ -36,11 +34,6 @@ if exists('tensor.tar'):
     epoch_ = checkpoint['epoch']
     loss = checkpoint['loss']
     model.train()
-    print(epoch_)
-    # print('parameters', model.parameters(l2))
-
-
-
 
 # setup hyperparameters for RL agent
 gamma = .99  # discount factor, how much we weight rewards in later states
@@ -48,8 +41,8 @@ epsilon = .99   # start with lots of exploration and decay to exploitation
 min_epsilon = 0.01
 max_time_steps = 250.0
 solved_time = 200.0
-epsilon_delta = 1.0/200.0  # linear decay over 200 iterations
-print("epsilon delta: ", epsilon_delta)
+epsilon_delta = 1.0/1000.0  # linear decay over x iterations...
+#print("epsilon delta: ", epsilon_delta)
 epsilon = epsilon-epsilon_delta*epoch_  # if we are resuming training, then epsilon needs to resume too
 print("starting epsilon: ", epsilon)
 
@@ -60,7 +53,8 @@ print("starting epsilon: ", epsilon)
 
 # The state for each step = [Cart position, cart "velocity", pole angle, pole angular velocity]
 
-epochs = 200   # how many times we want to train
+epochs = 250
+# how many times we want to train
 losses = []   # how well is our neural net doing for each run
 
 # Cart Directions -
@@ -68,12 +62,12 @@ losses = []   # how well is our neural net doing for each run
 # 3 = stationary
 # 4-6 = move away from sensor
 
-
 # Test the cart distance for initialization.
 arduino = serial.Serial('COM7', 115200)  # All communication needs to be blocking for this to work
 time.sleep(2)
 currentState = []
 episodeRewards = []
+
 
 for epoch in range(epochs):
     epoch_ += 1
@@ -121,12 +115,12 @@ for epoch in range(epochs):
             currentState.append(float(a))
         # state_ = np.array(bucketize(currentState))
         state_ = np.array(currentState)
-
         state1 = torch.from_numpy(state_).float()
         status = 1
         if len(currentState) != 4:
             status = 0
         currentState.clear()
+        consecFails = 0
         while status == 1:
             qvals = model(state1)  # get each of the qvals from the neural net
             qvals_ = qvals.data.numpy()  # underscore is denoting changed data
@@ -150,13 +144,18 @@ for epoch in range(epochs):
                 # observation state = (distance, velocity, poleAngle, angularVelocity)
                 if 5.0 < currentState[0] < 30.0 and 61.0 < currentState[2] < 121.0:
                     reward = 1
+                    consecFails = 0
                 else:
                     print("Failed state: ", currentState)
-                    reward = -1
+                    if consecFails == 2:
+                        reward = -1
+                    else:
+                        reward = 0
+                        consecFails += 1
                 if timeStep > solved_time:
                     reward = 10
                 #print("State: ", currentState, "Bucket: ", state2_)
-                print("state: ", currentState)
+                #print("state: ", currentState)
                 currentState.clear()
                 with torch.no_grad():
                     newQ = model(state2)
@@ -175,7 +174,7 @@ for epoch in range(epochs):
                 optimizer.step()
                 state1 = state2
                 timeStep += 1
-                if reward != 1:
+                if reward != 1 and reward != 0:
                     status = 0
             else:
                 print("Failed to read complete state")
@@ -185,16 +184,29 @@ for epoch in range(epochs):
         arduino.write(struct.pack('>B', 9))  #  send a '9' to signal end of episode
         if epsilon > 0.01:
             epsilon -= epsilon_delta  # linear
-            print("epsilon: ", epsilon)
+            #print("epsilon: ", epsilon)
+        else:
+            epsilon = 0.01
         episodeRewards.append(timeStep)
-        if epoch % 10 == 0:
+        if (epoch+1) % 10 == 0:
             torch.save({
                 'epoch': (epoch_+1),
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': loss,
             }, 'tensor.tar')
-            print(model.parameters(l2))
+            clip = list(episodeRewards[-10:])
+            rewardFile = open('RunningRewards.csv', 'a', newline='')
+            with rewardFile:
+                aveWrite = csv.writer(rewardFile)
+                aveWrite.writerow(clip)
+            rewardFile.close()
+            clip = list(losses[-10:])
+            lossFile = open('RunningLoss.csv', 'a', newline='')
+            with lossFile:
+                lossWrite = csv.writer(lossFile)
+                lossWrite.writerow(clip)
+            lossFile.close()
 
 arduino.close()
 
@@ -209,4 +221,3 @@ pylab.ylabel("Loss")
 pylab.xlabel("Training Steps")
 pylab.plot(losses)
 pylab.savefig("dqn_loss_plot%d.pdf" % epoch_, format="pdf")
-
