@@ -1,0 +1,12 @@
+linear decay 1/1000th
+1-250: 186.1
+251-500: 187
+501-750: 199.9
+751-1000: 250
+
+1001-1250: 286.1 ** all 99% motor shut off.01 learning rate
+1251-1500: 314.2    .15 linear decay
+1501-1750: 323.9 ** fixed 5% epsilon
+1751-2000: 318.5	** fixed 10% epsilon
+2001-2250: 274.5 ** fixed 15% epsilon...continued to shut off motor
+2251-2350: 102.8  (257 prediction)      ** 25% fixed epsilon...no progess
