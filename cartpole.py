@@ -12,8 +12,9 @@ import csv
 l1 = 4     # Layer 1 -- set up neural net with the number of inputs
 l2 = 24    # layers 2 and 3 are hidden layers
 l3 = 24
-l4 = 7     # 3 speeds to the left, stop motor, 3 speeds to the right
+l4 = 7     # 3 speeds to the left,  3 speeds to the right
 
+# set up the neural net
 model = torch.nn.Sequential(
     torch.nn.Linear(l1, l2),
     torch.nn.ReLU(),
@@ -41,7 +42,7 @@ epsilon = .99   # start with lots of exploration and decay to exploitation
 min_epsilon = 0.01
 max_time_steps = 250.0
 solved_time = 200.0
-epsilon_delta = 1.0/1000.0  # linear decay over x iterations...
+epsilon_delta = 1.0/1500.0  # linear decay over x iterations...
 #print("epsilon delta: ", epsilon_delta)
 epsilon = epsilon-epsilon_delta*epoch_  # if we are resuming training, then epsilon needs to resume too
 print("starting epsilon: ", epsilon)
@@ -95,7 +96,7 @@ for epoch in range(epochs):
             string = line.decode()
             num = float(string)
             print(num)
-            if 90.1 < num < 94.0:  # if it's vertical then get ready to go
+            if 90.1 < num < 93.2:  # if it's vertical then get ready to go
                 poleVerticalCounts += 1
                 if poleVerticalCounts == 3:
                     arduino.write(struct.pack('>B', 1))  # cart has been vertical for a total of 3 consecutive cycles
@@ -105,7 +106,7 @@ for epoch in range(epochs):
             else:
                 arduino.write(struct.pack('>B', 0))
                 poleVerticalCounts = 0
-    #  CART IS COMPLETELY INITIALIZED, DO AN EPISODE!  The on-board LED should turn on.
+    #  CART IS COMPLETELY INITIALIZED, DO AN EPISODE and train the cart!  The on-board LED should turn on.
 
     timeStep = 0
     line = arduino.readline().strip()  # observation state = (distance, velocity, poleAngle, angularVelocity)
@@ -113,7 +114,6 @@ for epoch in range(epochs):
         string = line.decode().split('/')
         for a in string:
             currentState.append(float(a))
-        # state_ = np.array(bucketize(currentState))
         state_ = np.array(currentState)
         state1 = torch.from_numpy(state_).float()
         status = 1
@@ -125,7 +125,7 @@ for epoch in range(epochs):
             qvals = model(state1)  # get each of the qvals from the neural net
             qvals_ = qvals.data.numpy()  # underscore is denoting changed data
             if random.random() < epsilon:
-                action_ = np.random.randint(0, 7)  # 0-2 towards wall,3 stop, 4-6 away from wall
+                action_ = np.random.randint(0, 7)  # 0-2 towards wall, 4-6 away from wall
                 print("Explore: ", action_)
             else:
                 action_ = np.argmax(qvals_)
@@ -137,11 +137,11 @@ for epoch in range(epochs):
                 string = line.decode().split('/')
                 for a in string:
                     currentState.append(float(a))
-            # state2_ = np.array(bucketize(currentState))
             if len(currentState) == 4:
                 state2_ = np.array(currentState)
                 state2 = torch.from_numpy(state2_).float()
                 # observation state = (distance, velocity, poleAngle, angularVelocity)
+                # check if cart is within acceptable parameters
                 if 5.0 < currentState[0] < 30.0 and 61.0 < currentState[2] < 121.0:
                     reward = 1
                     consecFails = 0
@@ -154,7 +154,6 @@ for epoch in range(epochs):
                         consecFails += 1
                 if timeStep > solved_time:
                     reward = 10
-                #print("State: ", currentState, "Bucket: ", state2_)
                 #print("state: ", currentState)
                 currentState.clear()
                 with torch.no_grad():
@@ -176,7 +175,7 @@ for epoch in range(epochs):
                 timeStep += 1
                 if reward != 1 and reward != 0:
                     status = 0
-            else:
+            else:  # failsafe in case cable comes uplugged and we need to restart the epoch
                 print("Failed to read complete state")
                 status = 0
 
@@ -186,9 +185,9 @@ for epoch in range(epochs):
             epsilon -= epsilon_delta  # linear
             #print("epsilon: ", epsilon)
         else:
-            epsilon = 0.01
-        episodeRewards.append(timeStep)
-        if (epoch+1) % 10 == 0:
+            epsilon = 0.02    # 2% explore when done decay
+        episodeRewards.append(timeStep)   # track our overall reward to check success!
+        if (epoch+1) % 10 == 0:         # Save the model periodically
             torch.save({
                 'epoch': (epoch_+1),
                 'model_state_dict': model.state_dict(),
